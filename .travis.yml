@@ -1,6 +1,7 @@
 language: python
 sudo: false
 install:
+    - pip install bashate --user
     - bundle install
 script:
     - rake test:bashate
