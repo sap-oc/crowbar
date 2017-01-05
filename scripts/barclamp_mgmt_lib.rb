@@ -505,6 +505,18 @@ def check_schema_migration(bc)
   return old_schema_revision != new_schema_revision
 end
 
+def bc_install_update_config_db(barclamps, log)
+  File.open(log, "a") do |f|
+    f.puts(
+      "======== Updating configuration DB for #{barclamps.join(", ")} -- " \
+      "#{Time.now.strftime("%c")} ========"
+    )
+  end
+  unless run_rake_task("crowbar:update_config_db[#{barclamps.join(" ")}]", log)
+    fatal "Failed to update configuration DB for #{barclamps.join(", ")}.", log
+  end
+end
+
 def get_rpm_file_list(rpm)
   cmd = "rpm -ql #{rpm}"
   file_list = `#{cmd}`.lines.map { |line| line.rstrip }
