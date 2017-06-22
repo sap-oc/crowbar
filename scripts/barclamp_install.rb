@@ -144,6 +144,7 @@ if do_chef
       exit_code = -3
     end
   end
+  bc_install_update_config_db barclamps, log
 end
 
 generate_navigation
