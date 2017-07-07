@@ -47,6 +47,9 @@ EOF
     exit
 }
 
+# Store the commandline before we process it (and destroy it)
+commandline="$*"
+
 while test $# -gt 0; do
     case "$1" in
         -h|--help|--usage|-\?) usage ;;
@@ -294,7 +297,7 @@ function reset_crowbar()
 # Real work starts here
 # ---------------------
 
-echo "`date` $0 started with args: $*"
+echo "`date` $0 started with args: $commandline"
 
 CROWBAR_TMPDIR=$(mktemp -d --tmpdir crowbar-install-XXXXXX)
 
@@ -342,6 +345,9 @@ reset_crowbar
 FQDN=$(hostname -f 2>/dev/null);
 DOMAIN=$(hostname -d 2>/dev/null);
 IPv4_addr=$( getent ahosts $FQDN 2>/dev/null | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
+# Set no_proxy for localhost, the FQDN and the hostname, so chef will not use
+# the proxy for them.
+export no_proxy="$no_proxy,localhost,$FQDN,$IPv4_addr"
 
 # Sanity checks
 # -------------
@@ -668,10 +674,7 @@ echo_summary "Performing initial chef-client run"
 service chef-client status &> /dev/null && service chef-client stop
 
 if ! [ -e ~/.chef/knife.rb -a -e ~/.chef/root.pem ]; then
-    # no_proxy is currently not supported in ruby see bsc#958716
-    # unset it for this call
-    (unset http_proxy
-    if [ knife client list | grep -q "^ *root$" ]; then
+    if knife client list | grep -q "^ *root$"; then
         knife client delete --yes root
     fi
     knife configure \
@@ -684,7 +687,6 @@ if ! [ -e ~/.chef/knife.rb -a -e ~/.chef/root.pem ]; then
     --validation-client-name chef-validator \
     --validation-key /etc/chef/validation.pem \
     --repository ""
-    )
 fi
 
 # Reset chef to install from clean state
@@ -881,7 +883,7 @@ fi
 
 # Use current time zone
 (
-    . /etc/sysconfig/clock
+    . /etc/sysconfig/clock || : Ignoring missing /etc/sysconfig/clock
     if [ -n "$TIMEZONE" ]; then
         echo "Will use $TIMEZONE timezone for node installation"
         $json_edit "$PROVISIONER_JSON" \
